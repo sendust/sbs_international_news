@@ -1,0 +1,27 @@
+#Tue Apr 25 09:44:55 KST 2023
+sequenceNumber=
+ipaddress=192.168.56.1
+preserveOD=false
+profileLastUpdated=
+agentMode=
+port=8087
+profileName=
+startupParams=-Xms512M -Xmx1G
+hostname=DESKTOP-38A0K54
+apikey=/+9YB/U6t9ezJ0yfbagVReRaRC/1tseU7Q+ouGPGXAavInqNebG+bw\=\=
+profileId=a12d1fb3-64ac-4c78-8dd9-f69d21e6e030
+serialPorts=
+agentserviceURL=https\://api.ap.org/media/v
+agentID=3bf4a2ca-4a6c-4fd1-8448-b8b4dedcc546
+agentKapiVersion=
+serialPortEnabled=false
+nextPage=
+placeHolder=
+localHTTPServerDisabled=false
+jarExecutionPath=E\:\\sbsint
+agentStartupParams=
+agentServiceName=
+agentName=
+environment=production
+entitlements=
+serialPortSettings=COM2,9600,8,1,none,none

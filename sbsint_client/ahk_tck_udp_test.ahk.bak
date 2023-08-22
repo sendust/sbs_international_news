@@ -1,0 +1,272 @@
+﻿
+
+#NoEnv  ; Recommended for performance and compatibility with future AutoHotkey releases.
+; #Warn  ; Enable warnings to assist with detecting common errors.
+SendMode Input  ; Recommended for new scripts due to its superior speed and reliability.
+SetWorkingDir %A_ScriptDir%  ; Ensures a consistent starting directory.
+#Include socket_nonblock.ahk				; Non block 2021/1/8
+SetBatchLines -1
+
+
+Gui, add, Edit, w1200 h900 hwndhtext Multi, message
+Gui, show
+
+
+udprecv := new class_udprecv("127.0.0.1", 34410)
+tcpsend := new class_tcpsend("10.10.108.203", 7891)
+;tcpsend := new class_tcpsend("10.10.108.203", 4001)
+rdata := new large_text()
+
+
+;SetTimer, send_tcp, 500
+
+
+
+1::
+tcpsend.sendtext("GPO 1 1")
+return
+
+
+
+
+
+
+
+2::
+FileDelete, result.txt
+FileAppend, % rdata.get_text(), result.txt, utf-8
+MsgBox "Result file Created..."
+return
+
+
+3::
+printobjectlist(rdata.data)
+
+return
+
+
+
+
+send_tcp:
+tcpsend.sendtext("send text to python " . A_TickCount)
+return
+
+
+
+updatelog(text)
+{
+	FormatTime, logfile,, yyyy-MM-dd
+	logfile := "ahk_log_" . logfile . ".log"
+	FormatTime, time_log,, yyyy/MM/dd HH:mm.ss
+	if checklogfile(logfile)
+		FileAppend, [%time_log%_%A_MSec%]  - Backup old log file .................`r`n, %logfile%
+	FileAppend, [%time_log%_%A_MSec%]  - %text%`r`n, %logfile%
+	FileAppend, [%time_log%_%A_MSec%]  - %text%`r`n, *
+}
+
+checklogfile(chkfile)
+{
+	FileGetSize, size, %chkfile%
+	if (size > 3000000)
+	{
+		SplitPath, chkfile, outfilename, outdir, outextension, outnamenoext, outdrive
+		FormatTime, outputvar,, yyyyMMdd-HHmmss
+		FileMove, %chkfile%, %outdir%\%outnamenoext%_%outputvar%.%A_MSec%.%outextension%, 0
+		return 1
+	}
+	else
+		return 0
+
+}
+
+
+
+printobjectlist(myobject)
+{
+	temp := "`r`n--------   Print object list  ---------`r`n"
+	for key, val in myobject
+		temp .= key . " ---->  " . val . "`r`n"
+	FileAppend, %temp%, *
+	return temp
+}
+
+
+finialize_data()
+{
+	global htext, rdata
+	FileAppend, [Force finialize..] , *
+	showtext := rdata.get_text()
+	GuiControl, , %htext%, %showtext%
+}
+
+append(t)
+{
+	global rdata, htext
+	fchk := InStr(t, "<finish_transfer>")
+	func_finialize := Func("finialize_data")
+	SetTimer, %func_finialize%, -1000
+
+	if InStr(t, "<start_transfer>")
+	{
+		FileAppend, [Start detected..] , *
+		rdata.clear()
+		GuiControl, , %htext%
+	}
+	else if fchk
+	{
+		SetTimer, %func_finialize%, off
+		newdata := SubStr(t, 1, fchk - 1)
+		FileAppend, [Finish detected..] , *
+		FileAppend, % rdata.count , *
+		rdata.append(newdata)
+		showtext := rdata.get_text()
+		GuiControl, , %htext%, %showtext%
+	}
+	else
+	{
+		rdata.append(t)
+	}
+}
+
+
+
+
+class large_text
+{
+	data := Object()
+	count := 0
+	__New()
+	{
+		this.data := ""
+	}
+
+	append(a)
+	{
+		this.data.push(a)
+		this.count += 1
+	}
+
+	get_text()
+	{
+		result := ""
+		for k, v in this.data
+		{
+			result .= v
+		}
+		return result
+	}
+
+	get_dataobj()
+	{
+		return this.data
+	}
+
+	clear()
+	{
+		this.data := Object()
+		this.count := 0
+	}
+}
+
+
+
+class class_tcpsend					; tcpsend class for non block tcp socket by sendust
+{
+	tcpclient := Object()
+	;timer := ObjBindMethod(this, "disconnect")
+	tick_send := A_TickCount
+	ip := ""
+	port := 0
+
+
+	__New(ip, port)
+	{
+		this.ip := ip
+		this.port := port
+	}
+
+	sendText(text)
+	{
+		updatelog("Create tcp remote class....")
+		address := Object()
+		address[1] := this.ip
+		address[2] := this.port
+		diff := A_TickCount - this.tick_send
+		if (diff < 50)
+			Sleep, 50											; insert short delay for non-block socket
+		try
+			this.tcpclient.disconnect()
+		catch, err
+			updatelog("error while disconnect")
+
+		try
+		{
+			this.tcpclient := new SocketTCP()		; Establish tcp connection with Caspar CG Server
+			this.tcpclient.Connect(address)
+			this.tcpclient.onRecv := this.tcprecv
+			this.tcpclient.sendtext(text)
+			this.tick_send := A_TickCount
+		}
+		catch, err
+			updatelog(printobjectlist(err))
+	}
+
+	tcprecv()
+	{
+		static count := 0
+		text := this.RecvText(1100)
+
+		if (StrLen(text) > 1)
+		{
+			count += 1
+			append(text)
+		}
+		;updatelog("Recv count is " . count)
+		;updatelog(text)
+	}
+}
+
+
+
+class class_udprecv
+{
+	remoteudp := Object()
+
+	__New(ip, port)
+	{
+		updatelog("Create udp remote class....")
+		address := Object()
+		address[1] := ip
+		address[2] := port
+		this.remoteudp := new SocketUDP()
+		this.remoteudp.Bind(address)
+		this.remoteudp.onRecv := this.udprecv
+	}
+
+	udprecv()
+	{
+		text :=  this.RecvText(8000)
+		updatelog("UDP Recv " . text . "`r`n")
+	}
+
+	__Delete()
+	{
+		updatelog("Delete udp remote class.....")
+		try
+		{
+			this.remoteudp.onRecv := ""
+			this.remoteudp.Disconnect()
+			this.remoteudp := ""
+		}
+		catch, err
+			updatelog(printobjectlist(err))
+	}
+}
+
+
+
+guiClose:
+esc::
+ExitApp
+
+

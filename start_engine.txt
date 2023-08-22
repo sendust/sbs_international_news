@@ -1,0 +1,3 @@
+python watchfolder.py --watchfolder E:\aptn_download --target F:\int_mxf_aptn --port 7890 --script aptn
+
+python watchfolder.py --watchfolder E:\int_download --target F:\int_mxf_reuter --port 4000 --script reuter

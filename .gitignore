@@ -1,0 +1,10 @@
+*.log
+*.exe
+done/
+document/
+debug/
+jcs/
+nginx/
+temp/
+log/
+logs/

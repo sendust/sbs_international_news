@@ -1,0 +1,23 @@
+C:\Users\cnnadmin>net share
+ 
+Share name Resource Remark
+
+-------------------------------------------------------------------------------
+
+C$ C:\ Default share
+IPC$ Remote IPC
+D$ D:\ Default share
+ADMIN$ C:\Windows Remote Admin
+CNNDownloads D:\PushDownloads CNN Dowonloads
+The command completed successfully.
+
+
+202.31.153.221
+
+cnnadmin
+
+cnnadmin00!
+
+RDP
+
+\\202.31.153.221\CNNDownloads
