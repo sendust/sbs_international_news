@@ -18,6 +18,8 @@ Gui, add, button, xp+110 yp w80 h30 gbutton7 hwndhbutton7, SHUTDOWN
 Gui, add, button, xp+110 yp w80 h30 gbutton8 hwndhbutton8, STATUS
 Gui, add, button, xp+110 yp w80 h30 gbutton9 hwndhbutton9, FTP LIST
 
+Gui, add, Edit, xm yp+35 w600 h30 -multi hwndheditbox veditbox, custom command <set_stt_on>
+Gui, add, button, xp+610 yp w80 h30 gbutton30 hwndhbutton30, CUSTOM
 
 Gui, add, ListView, xm  yp+40  w900 h420 hwndhlv1 NoSort NoSortHdr gclicklv1, NO|FILENAME|TS
 Gui, add, ListView, xm  yp+430 w900 h200 hwndhlv2 NoSort NoSortHdr gclicklv2, NO|FILENAME|TS
@@ -60,6 +62,12 @@ ftp.connect("10.10.108.203", 50080, "sbsint", "0000")
 return
 
 
+button30:
+
+Gui, submit, nohide
+tcpsend.sendtext(editbox)
+
+return
 
 button1:
 

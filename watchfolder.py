@@ -56,6 +56,9 @@ from psutil import process_iter
 #   2023/6/28   Log FTP transfer speed.
 #   2023/6/29   Add command - <get_ftplist>, change send large udp send sleep time (shorter)
 #   2023/7/25   Improve catalog image time stamp numbering..
+#   2023/8/24   Write STT meta in job XML
+#
+#
 #
 
 
@@ -1126,6 +1129,7 @@ class udp_reporter:
                  "Hour" : 0.0,
                  "running" : 0,
                  "ready" : 0,
+                 "stt" : "False",         # added 2023/8/24
                  "last_job" : "",
                  "last_event" : ""}
                  
@@ -1437,7 +1441,13 @@ def decode_command_new(address, client_req):
         updatelog("clear job queue..", True)
         jobs.force_quit()
 
-
+    elif client_req.startswith("<set_stt_on>"):
+        updatelog('set STT on command accepted', True)
+        set_report_data("stt", "True")
+    
+    elif client_req.startswith("<set_stt_off>"):
+        updatelog('set STT off command accepted', True)
+        set_report_data("stt", "False")
 
 
 def send_longtext_ahk_old(csocket, largedata):      # tcp reply for ahk.. depricated.....
@@ -1630,7 +1640,7 @@ def increase_queue_cycle():
     jobs.cycle_character()
 
 def write_xml_job(this):
-    global args
+    global args, ur
     root = ET.Element("SBS_MAM_Job_List")
     job = ET.SubElement(root, "SBS_MAM_Job")
     
@@ -1649,6 +1659,7 @@ def write_xml_job(this):
     
     ET.SubElement(job, "Job_Dest_Path").text = '//nds/storage/international'
     ET.SubElement(job, "Job_Dest_Filename").text = '//nds/storage/international'
+    ET.SubElement(job, "Job_STT_Enable").text = ur.send_data["stt"]    # added 2023/8/24
     ET.SubElement(job, "Job_OBJ_CATEGORY1").text = 'NDS'
     ET.SubElement(job, "Job_OBJ_CATEGORY2").text = 'INTERNATIONAL'
     ET.SubElement(job, "Job_OBJ_CATEGORY3").text = args.script
