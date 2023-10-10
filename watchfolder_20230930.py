@@ -1,5 +1,5 @@
 import time, datetime, threading, psutil, os, argparse, textwrap, signal, random, ftplib
-import subprocess, glob, socket, re, copy, sys, socketio, json
+import subprocess, glob, socket, re, copy, sys
 import xml.etree.ElementTree as ET
 from watchdog.observers import Observer
 from watchdog.observers.polling import PollingObserverVFS
@@ -57,24 +57,15 @@ from psutil import process_iter
 #   2023/6/29   Add command - <get_ftplist>, change send large udp send sleep time (shorter)
 #   2023/7/25   Improve catalog image time stamp numbering..
 #   2023/8/24   Write STT meta in job XML
-#   2023/10/1   Add Watchdog class, do_gracefully_finish()
-#   2023/10/4   Add socketio, web gui
-#   2023/10/5   Add socketio protocol decode & reply
+#
+#
+#
 
 
 def updatelog(txt, consoleout = False):
     pid = os.getpid()
     path_log = os.path.join(os.getcwd(), 'log', f'history_[{pid}].log')
     tm_stamp = datetime.datetime.now().strftime("%m/%d/%Y, %H:%M:%S.%f   ")
-    
-    try:
-        if (os.stat(path_log).st_size > 3000000):
-            path_archive = os.path.splitext(path_log)[0]
-            path_archive += '_' + datetime.datetime.now().strftime("_%m%d%Y-%H%M%S.log")
-            os.rename(path_log, path_archive)
-    except:
-        print("Log with file....")
-        
     txt = str(txt)
     with open(path_log, "a", encoding='UTF-8') as f:
         f.write(tm_stamp + txt + "\n")
@@ -82,7 +73,10 @@ def updatelog(txt, consoleout = False):
         col = os.get_terminal_size().columns
         print(" " * (int(col) - 1), end='\r')     # clear single line
         print(tm_stamp + txt)
-
+    if (os.stat(path_log).st_size > 3000000):
+        path_archive = os.path.splitext(path_log)[0]
+        path_archive += '_' + datetime.datetime.now().strftime("_%m%d%Y-%H%M%S.log")
+        os.rename(path_log, path_archive)
 
 
 class TqdmUpTo(tqdm):
@@ -210,7 +204,6 @@ class queue:
         for job in self.list_process:         # Start encoder if status is ready
             if ((job.status == "ready") and (n_running <= 2)):
                 job.do_schedule()
-                update_tm_watchdog()
                 set_report_data("last_job", job.file_in + "   " + datetime.datetime.now().strftime("(%m/%d %H:%M.%S)"))
                 n_running += 1
                 n_ready -= 1
@@ -269,9 +262,8 @@ class queue:
         for encoder in self.list_process:           # count running encoder, terminate aged encoder
             if (encoder.status == "running"):
                 updatelog(f'Terminate encoder pid [{encoder.pid}]', True)
+                encoder.enc.terminate()
                 encoder.checkoutput = ''    # prevent from done file record...
-                encoder.enc.terminate()     # encoder.enc ====> subprocess !!  ( call subprocess terminate method)
-
         for waiter in self.list_xml:
             updatelog(f'Terminate waiter [{waiter.infile}]', True)
             waiter.continue_waiter = 0
@@ -546,14 +538,9 @@ class encoder:
 
     
     def stop_encoder(self):
-        updatelog(f'Terminate encoder while loop  ---> {self.pid}', True)
-        self.checkoutput = ''
+        updatelog(f'Terminate encoder  ---> {self.pid}', True)
         self.get_pipe_continue = False
-        try:
-            self.enc.terminate()
-        except Exception as e:
-            updatelog(f'Error while Terminate subprocess  ---> {self.pid}', True)
-            
+        self.t.stop()
         
     
     def get_pipe(self):
@@ -737,7 +724,6 @@ def on_moved(event):
             do_add_updatelist(event.dest_path)    
 
 def do_finishrecord(encoder):
-    update_tm_watchdog()
     with open(encoder.done_file, "w", encoding="utf-8") as f:
         f.write(encoder.checkoutput + "\r\n" + encoder.script_data)
 
@@ -1207,7 +1193,6 @@ class udp_reporter:
         self.port = port
         self.host = host
     
-    
     def add_hourmeter(self, h):             # Hour meter increment
         self.send_data["Hour"] += h
     
@@ -1229,21 +1214,6 @@ class udp_reporter:
         for k in self.send_data:
             data += k + "**" + str(self.send_data[k]) + "\n"
         return data
-
-    
-    def get_html(self):     # added 2023/10/4
-        data = ""
-        for k in self.send_data:
-            eachline = str(self.send_data[k])
-            eachline = eachline.replace('<', '[')
-            eachline = eachline.replace('>', ']')
-            data += "<br>" + k + " ** " + eachline
-        return data
-
-    
-    def get_send_data(self):
-        return self.send_data
-    
     
 def set_report_data(key, value):
     ur.set_data(key, value)
@@ -1405,7 +1375,7 @@ def shortsleep(duration, get_now=time.perf_counter):
 
 def send_largetext_udp_ahk(address, largedata, finishtag = ''):
     #UDP_IP = "10.10.108.43"
-    UDP_PORT = args.port + 1         # Get udp port from argument parser
+    UDP_PORT = args.port        # Get udp port from argument parser
     UDP_IP = address[0]
 
     n = 100     # chunk length
@@ -1524,7 +1494,16 @@ def decode_command_new(address, client_req):
 
     elif client_req.startswith("<do_shutdown>"):
         updatelog("shutdown script by tcp command ..... ", True)
-        do_gracefully_finish()
+        updatelog("Stop tcp server", True)
+        tcpsvr.stop()
+        updatelog("Stop observer", True)
+        ob.stop()
+        updatelog("Stop gather timer", True)
+        periodic.cancel_timer()
+        updatelog("Stop delete old timer", True)
+        deleteold.cancel_timer()
+        updatelog("clear job queue..", True)
+        jobs.force_quit()
 
     elif client_req.startswith("<set_stt_on>"):
         updatelog('set STT on command accepted', True)
@@ -1546,7 +1525,7 @@ def decode_command_new(address, client_req):
 
 
 def send_longtext_ahk_old(csocket, largedata):      # tcp reply for ahk.. depricated.....
-    updatelog("reply to client", True)
+    updatelog("replay to client", True)
     n = 400     # chunk length
     chunks = [largedata[i:i+n] for i in range(0, len(largedata), n)]
     byte_sent = 0
@@ -1562,6 +1541,7 @@ def send_longtext_ahk_old(csocket, largedata):      # tcp reply for ahk.. depric
 
 
 def send_longtext_ahk(csocket, largedata):       # tcp reply for ahk.. depricated.....
+    #print("replay to client")
     n = 100     # chunk length
     chunks = [largedata[i:i+n] for i in range(0, len(largedata), n)]
     chunks.append('\n<finish_transfer>')
@@ -1729,149 +1709,6 @@ class transfer:
         self.status = st
         print(f'status changed... {st}')
 
-class watchdog_jin:
-    def __init__(self, tm_max):
-        self.tm_lastjob = time.time()
-        self.tm_max = tm_max
-
-
-    def set_time(self, tm):
-        self.tm_lastjob = tm
-
-    def start(self):
-        self.tmr = threading.Timer(self.tm_max, self.start)
-        self.tmr.name = "watchdog"
-        self.tmr.start()
-        updatelog("Watchdog is running ...", True)
-        if (time.time() > (self.tm_lastjob + self.tm_max)):
-            updatelog("Watchdog timeout..... try to terminate script...")
-            do_gracefully_finish()
-            exit()
-    
-    def stop(self):
-        updatelog("Finish watchdog timer...", True)
-        self.tmr.cancel()
-
-
-
-class sioclient():
-    def __init__(self):
-        print('Create python socket.io object')
-        self.sio = socketio.Client(reconnection = True, reconnection_delay=0.1, request_timeout = 0.1)
-        self.sio.on("connect", self.on_connect)
-        self.sio.on("disconnect", self.on_disconnect)
-        self.sio.on("msg_gui", self.on_msg_gui)
-        
-        
-    def on_connect(self):
-        print('connection established')
-        
-    def on_msg_gui(self, data):
-        #print('gui message received with ', data)
-        try:
-            decode_protocol_sio(data)
-        except Exception as e:
-            print(e)
-       
-        
-    def on_disconnect(self):
-        print('disconnected from server')
-        
-    def connect(self, address):
-        self.address = address
-
-        result = False
-        try:
-            self.sio.connect(address)
-            result = True
-        except Exception as e:
-            print(e)
-            result = False
-        finally:
-            return result
-
-    def isconnected(self):
-        return self.sio.connected
-
-    def disconnect(self):
-        try:
-            self.sio.disconnect()
-        except Exception as e:
-            print(e)
-
-    def send(self, name_event, data):
-        try:
-            self.sio.emit(name_event, data)
-        except Exception as e:
-            print(e)
-    
-
-
-class webgui:
-
-    def start(self):
-        self.keep_continue = True
-        self.sio = sioclient()
-        if (not self.sio.connect('http://localhost:50080')):
-            print("Cannot establish socketio... check server..")
-
-        threading.Thread(target=self.run).start()
-
-    def run(self):
-        while self.keep_continue:
-            if not self.sio.isconnected():
-                self.sio.connect('http://localhost:50080')
-            time.sleep(3)
-            
-    def stop(self):
-        self.keep_continue = False
-        
-    def send(self, msg):
-        if self.sio.isconnected():
-            self.sio.send('msg_engine', msg)
-
-    def send_reply(self, msg):
-        if self.sio.isconnected():
-            self.sio.send('rep_engine', msg)
-        
-
-
-def send_reply_socketio(largedata, finishtag = ''):
-    global gui, args
-    text_tosend = '<start_transfer>' + largedata + '<finish_transfer>' + finishtag
-    json_tosend = {"protocol" : "reply", "engine" : args.script, "data" : text_tosend}
-    gui.send_reply(json_tosend)
-
-
-
-def decode_protocol_sio(data):
-    global jobs, args, ur, sc
-    if ((data["protocol"] == "gui") and (data["engine"] == args.script)):
-        updatelog(data, True)
-        set_report_data("clientreq", data)
-        if (data["data"]["cmd"] == "shutdown"):
-            updatelog("shutdown engine from socketio command ..... ", True)
-            do_gracefully_finish()
-        
-        elif (data["data"]["cmd"] == "<get_income>"):
-            largedata = get_media_list_ext(args.watchfolder, '*.mp4')
-            send_reply_socketio(largedata,  '<incomelist>')
-            updatelog("get_income from socketio command ..... ", True)
-
-
-def decode_protocol_example(data):
-    if ((data["protocol"] == "gui") and (data["data"]["cmd"] == "allon")):
-        print("set all alarm on")
-        for each_rect in roi_ary:
-            each_rect.status = 1
-            each_rect.reset_accum()
-        
-
-
-def update_tm_watchdog():
-    global wg
-    wg.set_time(time.time())
-
 def increase_queue_cycle():
     global jobs
     jobs.cycle_character()
@@ -1938,7 +1775,6 @@ def write_xml_job(this):
 
 def do_transfer(infile):
     global args, jobs
-    
     for each in jobs.list_transfer:
         if infile in each.infile:
             updatelog(f'Requested file already exist in transfer queue... exit thread..   {infile}', True)
@@ -2038,25 +1874,6 @@ def do_story_update(xml_story):     #  xml_story = [tm_stamp, path_xml]
         updatelog(f'abort story update... {path_xml}  // file (media or done or xml) not exist.. or fail parsing story', True)
 
 
-def do_gracefully_finish():
-    global tcpsvr, ob, periodic, deleteold, jobs, wg, gui
-    updatelog("Stop tcp server", True)
-    tcpsvr.stop()
-    updatelog("Stop observer", True)
-    ob.stop()
-    updatelog("Stop gather timer", True)
-    periodic.cancel_timer()
-    updatelog("Stop delete old timer", True)
-    deleteold.cancel_timer()
-    updatelog("clear job queue..", True)
-    jobs.force_quit()
-    updatelog("stop watch dog timer..", True)
-    wg.stop()
-    updatelog("stop web gui..", True)
-    gui.stop()
-
-
-
 for folder in ['done', 'debug', 'log']:
     try:
         os.mkdir(folder)
@@ -2085,7 +1902,7 @@ ur.send()
 
 sc = scriptfinder(args.watchfolder, args.script)
 
-tcpsvr = tcp_svr_thread("0.0.0.0", int(args.port))
+tcpsvr = tcp_svr_thread("0.0.0.0", int(args.port + 1))
 tcpsvr.start()
 tqdm.disable_tick = False  # Disable STDOUT single line tick time ceremony during tqdm progress...
 
@@ -2118,10 +1935,6 @@ set_report_data("script", args.script)
 periodic = periodic_gather_encoding(args.done, args.watchfolder)
 periodic.do_encoding()
 
-wg = watchdog_jin(7200)
-wg.start()
-gui = webgui()
-gui.start()
 
 try:
     while tcpsvr.running:
@@ -2132,10 +1945,13 @@ try:
         ur.set_data("thread", threading.enumerate())
         ur.set_data("len_enc-wai-upd-xfer", [len(jobs.list_process), len(jobs.list_xml), len(jobs.list_update), len(jobs.list_transfer)])
         ur.send()
-        gui.send({"protocol": "debug", "engine": args.script, "data": json.dumps(ur.get_html()) })
 except KeyboardInterrupt:
     updatelog(f'Main thread halted... by keyboardinterrupt', True)
-    do_gracefully_finish()
+    tcpsvr.stop()
+    ob.stop()
+    periodic.cancel_timer()
+    deleteold.cancel_timer()
+    jobs.force_quit()
     
     
 except Exception as e:

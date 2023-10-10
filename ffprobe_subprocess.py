@@ -1,6 +1,6 @@
 import subprocess
 
-inputfile = "E:/int_download/2023-04-21T053305Z_1_LWD677021042023RP1_RTRWNEV_D_6770-SUDAN-POLITICS-BURHAN.MP4"
+inputfile = r'E:\cnn_download\BHDP_MW-007SU_WI_ ST CROIX CO_ DEPU_CNNA-ST1-200000000004e77a_175_0.mp4'
 
 
 def get_duration(inputfile):
@@ -19,3 +19,4 @@ def get_duration(inputfile):
     print(f"Input file duration is {duration}  seconds")
     return duration
 
+get_duration(inputfile)

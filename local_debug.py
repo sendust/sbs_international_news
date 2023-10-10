@@ -242,6 +242,7 @@ class gui(Gtk.Window):
         button3(self)
 
 updatelog("Application started....", True)
+updatelog(sys.version, True)
 
 win = gui()
 win.connect("destroy", Gtk.main_quit)

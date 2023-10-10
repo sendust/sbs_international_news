@@ -1,0 +1,126 @@
+
+def decode_command_new(address, client_req):
+    global jobs, args, ur, tcpsvr, ob, periodic, deleteold, sc
+    
+    set_report_data("clientreq", client_req)
+    if client_req.startswith("<get_income>"):
+        largedata = get_media_list_ext(args.watchfolder, '*.mp4')
+        send_largetext_udp_ahk(address, largedata, '<incomelist>')
+    
+    elif client_req.startswith("<get_script>"):
+        req_data = client_req.split("><")[1][:-1]   # select second bracketted protocol
+        dict_script = sc.search_script_file(req_data)
+        updatelog(f'Number of searched script = {len(dict_script)}', True)
+        dict_script_new = [each + "|" + time.strftime('%Y%m%d %H%M%S', time.localtime(os.path.getmtime(each))) for each in dict_script]
+        largedata = ""
+        for item in dict_script_new:                     # result is list !!
+            largedata += item + '\n'
+        send_largetext_udp_ahk(address, largedata, '<scriptlist>')
+    
+    elif client_req.startswith("<get_scdata>"):
+        req_data = client_req.split("><")[1][:-1]   # select second bracketted protocol
+        largedata = sc.get_script_data(req_data)    # result is text  !!
+        send_largetext_udp_ahk(address, largedata, '<scriptdata>')
+
+    elif client_req.startswith("<get_rawscript>"):  # send raw xml script data
+        req_data = client_req.split("><")[1][:-1]   # select second bracketted protocol
+        with open(req_data, "r", encoding="utf-8") as rawdata:
+            ary_line = rawdata.readlines()
+        largedata = ''.join(ary_line)
+        send_largetext_udp_ahk(address, largedata, '<rawscript>')
+
+        
+    elif client_req.startswith("<get_waiters>"):
+        updatelog(jobs.get_waiters(), True)
+        largedata = ''
+        for j in jobs.get_waiters():
+            largedata += j + '\n'
+        send_largetext_udp_ahk(address, largedata, '<waiters>')
+        
+    elif client_req.startswith("<get_jobs>"):
+        updatelog("Response get_jobs request..", True)
+        largedata = ''
+        for j in jobs.get_jobs():
+            largedata += j + '\n'
+        send_largetext_udp_ahk(address, largedata, '<jobs>')
+        updatelog(largedata, True)
+    
+    elif client_req.startswith("<get_status>"):
+        updatelog(ur.get_status(), True)
+        send_largetext_udp_ahk(address, ur.get_status(), '<status>')
+
+    elif client_req.startswith("<get_updaters>"):
+        report = jobs.get_updaters()
+        updatelog("send updaters queue information", True)
+        updatelog(report, True)
+        send_largetext_udp_ahk(address, report, '<updaters>')
+
+    elif client_req.startswith("<update_scdata>"):  # update new story
+        req_data = client_req.split("><")[1][:-1]   # select second bracketted protocol
+        updatelog(f'update story xml from tcp command {req_data}')
+        do_story_update([time.time(), req_data])
+
+    elif client_req.startswith("<do_encode>"):  # Manual encoding from tcp command
+        req_data = client_req.split("><")[1][:-1]   # select second bracketted protocol
+        updatelog(f'Queue up Manual encoding from tcp command {req_data}')
+        do_encoding(req_data)
+
+    elif client_req.startswith("<get_media>"):  # Search script related media
+        req_data = client_req.split("><")[1][:-1]   # select second bracketted protocol
+        updatelog(f'Search script related media from tcp command {req_data}', True)
+        dict_media = sc.search_media_files(req_data)
+        updatelog(f'Number of searched media = {len(dict_media)}', True)
+        dict_media_new = [each + "|" + time.strftime('%Y%m%d %H%M%S', time.localtime(os.path.getmtime(each))) for each in dict_media]
+        largedata = ""
+        for item in dict_media_new:                     # result is list !!
+            largedata += item + '\n'
+        send_largetext_udp_ahk(address, largedata, '<medialist>')
+
+    elif client_req.startswith("<get_ftplist>"):  # get ftp list
+        connection = transfer(args.transfer, args.username, args.password)
+        get_list = connection.remote_list()
+        largedata = ""
+        for each in get_list:
+            largedata += each + "\n"
+        send_largetext_udp_ahk(address, largedata, '<ftplist>')    
+
+    elif client_req.startswith("<get_incomelist>"):  # get ftp list
+        send_largetext_udp_ahk(address, "This is income list", '<incomelist>')    
+    
+    elif client_req.startswith("<get_successlist>"):  # get ftp list
+        send_largetext_udp_ahk(address, "This is success list", '<successlist>')    
+    
+    elif client_req.startswith("<get_errorlist>"):  # get ftp list
+        send_largetext_udp_ahk(address, "This is error list", '<errorlist>')    
+
+
+    elif client_req.startswith("<do_shutdown>"):
+        updatelog("shutdown script by tcp command ..... ", True)
+        updatelog("Stop tcp server", True)
+        tcpsvr.stop()
+        updatelog("Stop observer", True)
+        ob.stop()
+        updatelog("Stop gather timer", True)
+        periodic.cancel_timer()
+        updatelog("Stop delete old timer", True)
+        deleteold.cancel_timer()
+        updatelog("clear job queue..", True)
+        jobs.force_quit()
+
+    elif client_req.startswith("<set_stt_on>"):
+        updatelog('set STT on command accepted', True)
+        set_report_data("stt", "True")
+    
+    elif client_req.startswith("<set_stt_off>"):
+        updatelog('set STT off command accepted', True)
+        set_report_data("stt", "False")
+
+    elif client_req.startswith("<set_trans_on>"):
+        updatelog('set translation on command accepted', True)
+        set_report_data("translation", "True")
+        
+    elif client_req.startswith("<set_trans_off>"):
+        updatelog('set translation off command accepted', True)
+        set_report_data("translation", "False") 
+        
+

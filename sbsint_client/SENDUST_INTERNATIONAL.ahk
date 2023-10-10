@@ -58,7 +58,7 @@ lv2 := new c_lv(hlv2, 3)
 
 
 ftp := new wget()
-ftp.connect("10.10.108.203", 50080, "sbsint", "0000")
+;ftp.connect("202.31.153.221", 50080, "sbsint", "0000")
 return
 
 
@@ -73,9 +73,9 @@ button1:
 
 udprecv := Object()
 tcpsend := Object()
-; reuter = port 4000
-udprecv := new class_udprecv("0.0.0.0", 4000)
-tcpsend := new class_tcpsend("10.10.108.203", 4001)
+; reuter = port 50011
+udprecv := new class_udprecv("0.0.0.0", 50012)
+tcpsend := new class_tcpsend("202.31.153.221", 50011)
 tcpsend.sendtext("<get_income>")
 ftproot.choice := ftproot["reuters"]
 updatestatus(ftproot.choice)
@@ -86,9 +86,9 @@ button2:
 
 udprecv := Object()
 tcpsend := Object()
-; aptn = port 7890
-udprecv := new class_udprecv("0.0.0.0", 7890)
-tcpsend := new class_tcpsend("10.10.108.203", 7891)
+; aptn = port 50021
+udprecv := new class_udprecv("0.0.0.0", 50022)
+tcpsend := new class_tcpsend("202.31.153.221", 50021)
 tcpsend.sendtext("<get_income>")
 ftproot.choice := ftproot["aptn"]
 updatestatus(ftproot.choice)
@@ -100,9 +100,9 @@ button3:
 
 udprecv := Object()
 tcpsend := Object()
-; cnn = port 21000
-udprecv := new class_udprecv("0.0.0.0", 21000)
-tcpsend := new class_tcpsend("10.10.108.203", 21001)
+; cnn = port 50031
+udprecv := new class_udprecv("0.0.0.0", 50032)
+tcpsend := new class_tcpsend("202.31.153.221", 50031)
 tcpsend.sendtext("<get_income>")
 ftproot.choice := ftproot["cnn"]
 updatestatus(ftproot.choice)

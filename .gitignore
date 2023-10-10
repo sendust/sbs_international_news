@@ -8,3 +8,4 @@ nginx/
 temp/
 log/
 logs/
+nodejs/node_modules/
