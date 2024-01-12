@@ -87,8 +87,8 @@ button2:
 udprecv := Object()
 tcpsend := Object()
 ; aptn = port 50021
-udprecv := new class_udprecv("0.0.0.0", 50021)
-tcpsend := new class_tcpsend("202.31.153.221", 50022)
+udprecv := new class_udprecv("0.0.0.0", 50022)
+tcpsend := new class_tcpsend("202.31.153.221", 50021)
 tcpsend.sendtext("<get_income>")
 ftproot.choice := ftproot["aptn"]
 updatestatus(ftproot.choice)
@@ -101,8 +101,8 @@ button3:
 udprecv := Object()
 tcpsend := Object()
 ; cnn = port 50031
-udprecv := new class_udprecv("0.0.0.0", 50031)
-tcpsend := new class_tcpsend("202.31.153.221", 50032)
+udprecv := new class_udprecv("0.0.0.0", 50032)
+tcpsend := new class_tcpsend("202.31.153.221", 50031)
 tcpsend.sendtext("<get_income>")
 ftproot.choice := ftproot["cnn"]
 updatestatus(ftproot.choice)

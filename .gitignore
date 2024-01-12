@@ -1,11 +1,10 @@
 *.log
-*.exe
-done/
-document/
+*.done
+temp/**
+done/*
 debug/
-jcs/
-nginx/
-temp/
-log/
 logs/
+log/*
 nodejs/node_modules/
+jcs/
+document/

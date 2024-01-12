@@ -60,6 +60,16 @@ from psutil import process_iter
 #   2023/10/1   Add Watchdog class, do_gracefully_finish()
 #   2023/10/4   Add socketio, web gui
 #   2023/10/5   Add socketio protocol decode & reply
+#   2023/10/13  Add reply for ftp incoming, success, fail list
+#               ftp address changed (temp storage -> normal service)
+#   2023/10/17  add socket io protocol decoding
+#   2023/10/25  display age as week, hour, minute/ Story update ==> add Job_Src_ID
+#   2023/10/26  Improve reuter script finder  [-1] index -> [5]
+#   2023/10/29  Improve aptn find media from script.
+#   2023/11/6   Improve cnn title extractor
+#   2023/11/11  Change NDS storage node ID
+#   2023/11/21  Add tag features.. (REUTERS, APTN, CNN tags are extracted from script xml)
+#               Change ftp timeout   4 sec -> 20 sec
 
 
 def updatelog(txt, consoleout = False):
@@ -303,7 +313,7 @@ class full_path_set:     # Accept file list and chkeck all files are exist
         self.outputfiles["jpg"] = os.path.join(self.path_target, nameonly, f'{nameonly}_%08d.jpg')
         self.outputfiles["jpg1"] = os.path.join(self.path_target, nameonly, f'{nameonly}_00000000.jpg')
         self.outputfiles["proxy_folder"] = os.path.join(self.path_target, nameonly)
-        self.outputfiles["ftp_folder"] = nameonly
+        self.outputfiles["ftp_folder"] = "incoming/" + nameonly
         self.outputfiles["ID"] = get_name(infile)
         self.donefiles["mxf"] = os.path.join(self.path_done, os.path.basename(infile) + ".mxf__done")
         self.donefiles["pxy"] = os.path.join(self.path_done, os.path.basename(infile) + ".prox_done")
@@ -652,11 +662,11 @@ def do_encoding(filename):
         updatelog(f'proxy folder = {fp.outputfiles["proxy_folder"]}')
 
 
-    mp3 = encoder()
-    mp3.set_file(filename, fp.outputfiles["aud"], duration)
-    mp3.set_schedule("audio")          # schedule STT audio encoding
-    mp3.done_file = fp.donefiles["aud"]
-    jobs.list_process.append(mp3)
+    #mp3 = encoder()
+    #mp3.set_file(filename, fp.outputfiles["aud"], duration)
+    #mp3.set_schedule("audio")          # schedule STT audio encoding
+    #mp3.done_file = fp.donefiles["aud"]
+    #jobs.list_process.append(mp3)          # Disabled 2023/11/3
     
     mxf = encoder()
     mxf.set_file(filename, fp.outputfiles["mxf"], duration)
@@ -819,11 +829,29 @@ def gather_missing_adv(path_done, path_watch):
     updatelog(">>>>> Finish gather missing...", True)
     return list_missing    
 
+
+
+def display_time(sec):
+    second = int(sec)
+    ms = str((sec - second) * 100)
+    ms = ms[:2]
+    w = second // 604800
+    second -= w * 604800
+    d = second // 86400
+    second -= d * 86400
+    h = second // 3600
+    second -= h * 3600
+    m = second // 60
+    second -= m * 60
+    second = str(second) + "." + ms
+    return f'{w}w {d}d {h}h {m}m {second}s'
+
     
 def show_tick_line(q):
     global args, jobs
     if not tqdm.disable_tick:
-        print(f'Watch = {args.watchfolder} <---> {format("%.1f" % (300 - (time.time() - jobs.tm_last_gather)))}/{format("%.1f" % (time.time() - jobs.tm_startup))}  Wait new media...  {jobs.progress_cycle}', end="\r")
+        #print(f'Watch = {args.watchfolder} <---> {format("%.1f" % (300 - (time.time() - jobs.tm_last_gather)))}/{format("%.1f" % (time.time() - jobs.tm_startup))}  Wait new media...  {jobs.progress_cycle}', end="\r")
+        print(f'Watch = {args.watchfolder} <---> {format("%.1f" % (300 - (time.time() - jobs.tm_last_gather)))}/{display_time(time.time() - jobs.tm_startup)}  Wait new media...  {jobs.progress_cycle}', end="\r")
 
 
 def get_extension(f):           # return .mp4  .txt   .avi ...
@@ -969,7 +997,8 @@ class scriptfinder:
     def search_script_file_reuter(self, infile):   # infile is mp4
         # 2023-05-15T130215Z_2_LWD254615052023RP1_RTRWNEV_D_2546-SLOVAKIA-GOVERNMENT.MP4
         try:
-            key = get_name(infile).split('_')[-1][5:-4] + '.XML'
+            #key = get_name(infile).split('_')[-1][5:-4] + '.XML'
+            key = get_name(infile).split('_')[5][5:-4] + '.XML'     # Improve 2023/10/16
             key_number = get_name(infile).split('_')[-1][:4]        # probe 4 digit number part
         except Exception as e:
             updatelog(f'Error while parsing mp4 file name for script.. reuter  {infile} \n{e}', True)
@@ -1023,7 +1052,8 @@ class scriptfinder:
             id = get_name(infile).split('_')[0]
         except:
             id = "Error parsing mp4 file name"
-        globkey = os.path.join(self.watchpath, id + '*_script.xml')
+        #globkey = os.path.join(self.watchpath, id + '*_script.xml')
+        globkey = os.path.join(self.watchpath, id + '*-item.xml')   # New 2023/11/20
         updatelog(f'glob script files with key.. {globkey}', True)
         sclist = glob.glob(globkey)
         try:
@@ -1036,13 +1066,29 @@ class scriptfinder:
             return []
 
 
-    def get_script_data_aptn(self, infile = ''):   # in file is xml
+    def get_script_data_aptn_old(self, infile = ''):   # in file is xml
         if not infile:
             self.text_script =  "Error finding script data.... xml file not given"
         try:
             with open(infile, encoding='utf-8') as fp:
                 soup = BeautifulSoup(fp.read(), 'html.parser')
                 self.text_script = soup.body.text
+        except:
+            self.text_script = "Error finding script data......"
+        return self.text_script
+
+
+    def get_script_data_aptn(self, infile = ''):   # in file is xml, get from *-item.xml file (2023/11/20)
+        self.text_script = ''
+        if not infile:
+            self.text_script =  "Error finding script data.... xml file not given"
+        try:
+            with open(infile, encoding='utf-8') as fp:
+                tree = ET.parse(infile)
+                root = tree.getroot()
+                for each in root.iter('{http://iptc.org/std/NITF/2006-10-18/}p'):
+                    if each.text:
+                        self.text_script += each.text + "\n"
         except:
             self.text_script = "Error finding script data......"
         return self.text_script
@@ -1106,7 +1152,8 @@ class scriptfinder:
         name = Path(file_xml).stem
         key = ''                # 2023-05-15T122944Z_7_RW257215052023RP1_RTRMADC_0_G7-SUMMIT-EU.XML
         try:
-            key = name.split('_')[-1]
+            #key = name.split('_')[-1]
+            key = name.split('_')[5]  # Improve 2023/10/26
         except Exception as e:
             updatelog(f'Error key sampling while search media..  {e}')
             return []
@@ -1123,11 +1170,22 @@ class scriptfinder:
         
     def search_media_files_aptn(self, file_xml):
         # cctv057030_China-Central AsiaCivil AviationFlights_1_Script.xml--6f7e1_Script.xml
-        parser = get_name(file_xml).split('_')
-        if not 'Script.xml' in parser:
+        # 5383675_Singapore Thailand Presser_0-item.xml         <--   changed 2023/11/20
+        
+        if not file_xml.endswith("-item.xml"):
+            updatelog(f'error finding media files. reason : xml is not valid filename  {file_xml}', True)
             return []
+        
+        parser = get_name(file_xml).split('_')
+        if not len(parser):
+            updatelog(f'error finding media files. reason : parser contains nothing {file_xml}', True)
+            return []
+        
+        updatelog(f'search aptn media file from xml file // {file_xml}', True)
+        
         if len(parser) > 1:
-            key = parser[0] + '_' + parser[1]
+            #key = parser[0] + '_' + parser[1]
+            key = parser[0] + '_'   # changed 2023/10/29
         else:
             return []
         globkey = os.path.join(os.path.join(self.watchpath, key + '*.mp4'))
@@ -1138,6 +1196,7 @@ class scriptfinder:
     def search_media_files_cnn(self, file_xml):
         # RQ-504TU_REQUEST-REP NANCY MAC_CNNA-ST1-200000000004f124_900_0.xml
         # BHDP_RQ-504TU_REQUEST-REP NANCY MAC_CNNA-ST1-200000000004f124_175_0.mp4
+        # naming changed --> BHDN_NE-015TH_CAN_ FORMER HOCKEY PL_CNNA-ST1-200000000005ac68_174_0.mp4  (2023/10/27)
         parser = get_name(file_xml).split('_')
         if (len(parser) < 3):
             updatelog(f'Error.. xml file is not standard cnn script. {file_xml}', True)
@@ -1148,7 +1207,7 @@ class scriptfinder:
         except Exception as e:
             updatelog(f'Error while parsing script file name.. {file_xml}\n{e}', True)
             return []
-        globkey = os.path.join(os.path.join(self.watchpath, 'BHDP_' + key + '*.mp4'))
+        globkey = os.path.join(os.path.join(self.watchpath, 'BHDN_' + key + '*.mp4'))
         updatelog(f'Glob media files with key...  {globkey}', True)      
         list_media = glob.glob(globkey)
         return list_media
@@ -1157,10 +1216,11 @@ class scriptfinder:
         # 2023-08-31T125917Z_2_LWD818730082023RP1_RTRWNEV_D_8187-STORM-IDALIA-HORSESHOE-BEACH.MP4
         key = ""
         try:
-            key = get_name(infile).split('_')[-1][:-4]  
+            #key = get_name(infile).split('_')[-1][:-4]  
+            key = get_name(infile).split('_')[5][:-4]  # Improve 2023/10/26
         except Exception as e:
             updatelog(f'Error while parsing mp4 file name for title.. reuter  {infile} \n{e}', True)
-            
+            key = get_name(infile)
         updatelog(f'[REUTERS] Script tile is {key}', 1)
         
         return key
@@ -1169,10 +1229,10 @@ class scriptfinder:
         # 4451199_HZ GERMANY IFA MIELE_0_1080i60ESSENCE--476a5.mp4
         key = ""
         try:
-            key = get_name(infile).split('_')[1]
+            key = "_".join(get_name(infile).split('_')[0:2])    # number ID + text titile
         except Exception as e:
             updatelog(f'Error while parsing mp4 file name for title.. APTN  {infile} \n{e}', True)
-            
+            key = get_name(infile)
         updatelog(f'[APTN] Script tile is {key}', 1)
         
         return key
@@ -1182,18 +1242,100 @@ class scriptfinder:
         key = ""
         try:
             key_temp = get_name(infile).split('_')
-            key = key_temp[1] + ' ' + key_temp[2]
+            #key = key_temp[1] + ' ' + key_temp[2]
+            key = " ".join(key_temp[1:-3])          # Improved 2023/11/6
+            key = key.replace("  ", " ")
         except Exception as e:
             updatelog(f'Error while parsing mp4 file name for title.. CNN  {infile} \n{e}', True)
-            
-        updatelog(f'[CNN] Script tile is {key}', 1)
+            key = get_name(infile)
+        updatelog(f'[CNN] Script tile is {key}', True)
         
         return key
 
 
+    def search_tag(self, infile_mp4):      # in file is mp4        Added 2022/11/20
+        try:
+            scfiles = self.search_script_file(infile_mp4)   # result is list
+        except:
+            updatelog("Erroe while search script files before finding tag..")
+            return '#---------'
+        dict_search_tag = {'reuter': self.get_tag_reuter, 'aptn' : self.get_tag_aptn, 'cnn' : self.get_tag_cnn}
+        updatelog(f'script tag finder mode is {self.mode}', True)
+        tags = dict_search_tag[self.mode](scfiles[-1])      # Select last version xml script
+        updatelog(f'finding tags are {tags}', True)
+        return tags
+
+
+    def get_tag_reuter(self, infile):
+        tag = ''
+        #print("subject.... ++++++++++++")
+        try:
+            with open(infile, encoding='utf-8') as fp:
+                tree = ET.parse(infile)
+                root = tree.getroot()        
+                for child in root.iter("{http://iptc.org/std/nar/2006-10-01/}subject"):
+                    for each in child.iter():
+                        if each.text:
+                            if (ord(each.text[0]) - 10):     # begin character is not '\n'
+                                #print("#"  + each.text.strip())
+                                tag += "#" + each.text.strip()
+
+                #print("keyword.... ++++++++++++")
+                for child in root.iter("{http://iptc.org/std/nar/2006-10-01/}keyword"):
+                    #print(child.tag)
+                    for each in child.iter():
+                        if each.text:
+                            #print("#" + each.text.strip())
+                            tag +=  "#" + each.text.strip()
+
+            updatelog(f'Tag finding result is {tag}', True)
+           
+        except Exception as e:
+            updatelog(f'Error while get tag reuter.... {infile} \n{e}', True)
+            
+        return tag
+
+
+    def get_tag_aptn(self, infile):
+        tag = ''
+        try:
+            with open(infile, encoding='utf-8') as fp:
+                tree = ET.parse(infile)
+                root = tree.getroot()
+                for child in root.iter("{http://iptc.org/std/nar/2006-10-01/}subject"):
+                    for each in child.iter():
+                        if each.text:
+                            if (ord(each.text[0]) - 10):     # begin character is not '\n'
+                                #print("#" + each.text.strip())
+                                tag += "#" + each.text.strip()
+            updatelog(f'Tag finding result is {tag}', True)
+            
+        except Exception as e:
+            updatelog(f'Error while get tag aptn.... {infile} \n{e}', True)
+        return tag
+
+
+    def get_tag_cnn(self, infile):
+        tag = ''
+        try:
+            with open(infile, encoding='utf-8') as fp:
+                tree = ET.parse(infile)
+                root = tree.getroot()
+                for each in root.iter('category'):
+                    if each.text:
+                        tag += "#" + each.text.strip()
+            updatelog(f'Tag finding result is {tag}', True)
+            
+        except Exception as e:
+            updatelog(f'Error while get tag cnn.... {infile} \n{e}', True)
+
+        return tag
+
+
+
 class udp_reporter:
     
-    send_data = {"age" : 0,
+    send_data = {"age" : "0w 0d 0h 0m 0.00s",
                  "Hour" : 0.0,
                  "running" : 0,
                  "ready" : 0,
@@ -1395,6 +1537,32 @@ class delete_old():
         self.tmr.cancel()
         self.schedule = False
 
+class reply_cache:
+    def __init__(self, age):
+        self.answer = {}
+        self.answer_tm = {}
+        self.age = age
+        
+        
+    def init_answer(self, key):
+        self.answer[key] = 0
+        
+    def set_answer(self, key, value=""):
+        self.answer[key] = value
+        self.answer_tm[key] = time.time()
+
+    def get_answer(self, key):
+        return self.answer[key]
+        
+    def is_cached(self, key):
+        diff = time.time() - self.answer_tm[key]
+        if (diff < self.age):
+            return True
+        else:
+            return False
+
+
+
 def shortsleep(duration, get_now=time.perf_counter):
     now = get_now()
     end = now + duration
@@ -1418,7 +1586,7 @@ def send_largetext_udp_ahk(address, largedata, finishtag = ''):
 
     tqdm.disable_tick = True        # Disable line tick count show
     for c in tqdm(chunks, ascii='-#'):
-        shortsleep(0.0002)   # add 1ms delay for autohotkey's slow udp processing....
+        shortsleep(0.0005)   # add 1ms delay for autohotkey's slow udp processing....
         byte_sent += sock.sendto(c.encode("utf-8"), (UDP_IP, UDP_PORT))
         #print(byte_sent, end=" ") # debugging !! check sent byte
         set_report_data("last_event", "byte_sent=" + str(byte_sent))  # Debugging !!
@@ -1504,7 +1672,7 @@ def decode_command_new(address, client_req):
             largedata += item + '\n'
         send_largetext_udp_ahk(address, largedata, '<medialist>')
 
-    elif client_req.startswith("<get_ftplist>"):  # get ftp list
+    elif client_req.startswith("<get_ftplist>"):  # get ftp list (old version..
         connection = transfer(args.transfer, args.username, args.password)
         get_list = connection.remote_list()
         largedata = ""
@@ -1512,14 +1680,35 @@ def decode_command_new(address, client_req):
             largedata += each + "\n"
         send_largetext_udp_ahk(address, largedata, '<ftplist>')    
 
-    elif client_req.startswith("<get_incomelist>"):  # get ftp list
-        send_largetext_udp_ahk(address, "This is income list", '<ftpincomelist>')    
+    elif client_req.startswith("<get_incomelist>"):  # get ftp list, /incoming
+        connection = transfer(args.transfer, args.username, args.password)
+        get_list = connection.remote_list('/incoming')
+        largedata = ""
+        for each in get_list:
+            largedata += each + "\n"
+        updatelog(f'reply ftp get_incomelist\n ftp incomelist is (shows head part only)', True)
+        updatelog(largedata[:160], True)
+        send_largetext_udp_ahk(address, largedata, '<ftpincomelist>')    
     
-    elif client_req.startswith("<get_successlist>"):  # get ftp list
-        send_largetext_udp_ahk(address, "This is success list", '<ftpsuccesslist>')    
+    elif client_req.startswith("<get_successlist>"):  # get ftp list, /success
+        connection = transfer(args.transfer, args.username, args.password)
+        get_list = connection.remote_list('/success')
+        largedata = ""
+        for each in get_list:
+            largedata += each + "\n"
+        updatelog(f'reply ftp get_successlist\n ftp successlist is', True)
+        updatelog(largedata[:160], True)
+        send_largetext_udp_ahk(address, largedata, '<ftpsuccesslist>')    
     
-    elif client_req.startswith("<get_errorlist>"):  # get ftp list
-        send_largetext_udp_ahk(address, "This is error list", '<ftperrorlist>')    
+    elif client_req.startswith("<get_errorlist>"):  # get ftp list, /fail
+        connection = transfer(args.transfer, args.username, args.password)
+        get_list = connection.remote_list('/fail')
+        largedata = ""
+        for each in get_list:
+            largedata += each + "\n"
+        updatelog(f'reply ftp get_errorlist\n ftp errorlist is', True)
+        updatelog(largedata[:160], True)
+        send_largetext_udp_ahk(address, largedata, '<ftperrorlist>')    
 
 
     elif client_req.startswith("<do_shutdown>"):
@@ -1660,23 +1849,24 @@ class transfer:
         fn_cb(self.arguments[0], self.arguments[1])
         self.set_status("finish")
         
-    def remote_list(self):
+    def remote_list(self, rpath="."):
         result = []
         try:
-            f = ftplib.FTP(host = self.host, user = self.username, passwd = self.password, timeout = 4, encoding = 'utf-8')
-            result = f.nlst()
+            f = ftplib.FTP(host = self.host, user = self.username, passwd = self.password, timeout = 20, encoding = 'utf-8')
+            result = f.nlst(rpath)
             f.quit()
         except Exception as e:
-            updatelog(f'Error while retrieve remote list files...  [{e}]', True)
+            updatelog(f'Error while retrieve remote path [{rpath}] list files...  [{e}]', True)
         return result
     
     
     def mkdir(self, pathname, *dummy_arg):
         updatelog(f'make ftp remote path {pathname}', True)
         try:
-            f = ftplib.FTP(host = self.host, user = self.username, passwd = self.password, timeout = 4, encoding = 'utf-8')
+            f = ftplib.FTP(host = self.host, user = self.username, passwd = self.password, timeout = 20, encoding = 'utf-8')
             f.mkd('./' + pathname)
             f.quit()
+            set_report_data("last_event", f'ftp mkdir.... {pathname}')
         except Exception as e:
             updatelog(f'Error while create ftp object or make dir..   {pathname}  [{e}]', True)
 
@@ -1684,12 +1874,13 @@ class transfer:
     def send(self, filepath, path_remote = ''):
         tm_start = time.time()
         try:
-            f = ftplib.FTP(host = self.host, user = self.username, passwd = self.password, timeout = 4, encoding = 'utf-8')
+            f = ftplib.FTP(host = self.host, user = self.username, passwd = self.password, timeout = 20, encoding = 'utf-8')
             #print("ftp object created..")
             f.set_pasv(True)
             updatelog(f'Start transfer... {filepath} / path is {path_remote}', True)
             with open(filepath, "rb") as fp:
                 remotecmd = "STOR " + './' + path_remote + '/' + os.path.basename(filepath)
+                set_report_data("last_event", f'ftp transfer.... {get_name(filepath)}')
                 f.storbinary(cmd=remotecmd, fp=fp, blocksize=1024*1024, callback=self.showtransfer)
             f.quit()
             tm_duration = time.time() - tm_start + 0.00000000001
@@ -1701,7 +1892,7 @@ class transfer:
     
     def sendlist(self, list_filepath, path_remote = ''):
         try:
-            f = ftplib.FTP(host = self.host, user = self.username, passwd = self.password, timeout = 4, encoding = 'utf-8')
+            f = ftplib.FTP(host = self.host, user = self.username, passwd = self.password, timeout = 20, encoding = 'utf-8')
         except Exception as e:
             print("Error while create ftp object..")
         updatelog(f'Start transfer (list mode) ', True)
@@ -1709,6 +1900,7 @@ class transfer:
             try:
                 with open(each, "rb") as fp:
                     f.storbinary(cmd="STOR " + './' + path_remote + '/' + os.path.basename(each), fp=fp, blocksize=1024*1024, callback=self.showtransfer)
+                    set_report_data("last_event", f'ftp transfer.... {get_name(each)}')
                     updatelog(os.path.basename(each), True)
             except Exception as e:
                 updatelog(f'Error while transfer file list..  {e}', True)
@@ -1769,7 +1961,8 @@ class sioclient():
     def on_msg_gui(self, data):
         #print('gui message received with ', data)
         try:
-            decode_protocol_sio(data)
+            threading.Thread(target=decode_protocol_sio, daemon=True, name="sio_reply", args=(data,)).start()
+            #decode_protocol_sio(data)
         except Exception as e:
             print(e)
        
@@ -1810,12 +2003,12 @@ class sioclient():
 class webgui:
 
     def start(self):
-        self.keep_continue = True
+        self.keep_continue = False
         self.sio = sioclient()
         if (not self.sio.connect('http://localhost:50080')):
             print("Cannot establish socketio... check server..")
 
-        threading.Thread(target=self.run).start()
+        threading.Thread(target=self.run, name="sio_reconnect").start()
 
     def run(self):
         while self.keep_continue:
@@ -1832,31 +2025,173 @@ class webgui:
 
     def send_reply(self, msg):
         if self.sio.isconnected():
-            self.sio.send('rep_engine', msg)
+            self.sio.send('reply_engine', msg)
         
 
 
-def send_reply_socketio(largedata, finishtag = ''):
+def send_reply_socketio(id_client, largedata, finishtag = ''):
     global gui, args
     text_tosend = '<start_transfer>' + largedata + '<finish_transfer>' + finishtag
-    json_tosend = {"protocol" : "reply", "engine" : args.script, "data" : text_tosend}
+    json_tosend = {"receiverId" : id_client, "protocol" : "reply", "engine" : args.script, "data" : text_tosend}
     gui.send_reply(json_tosend)
 
 
 
 def decode_protocol_sio(data):
     global jobs, args, ur, sc
+    try:
+        id_client = data["receiverId"]
+    except:
+        id_client = "aabbccddeeffgghhiijj"
+
     if ((data["protocol"] == "gui") and (data["engine"] == args.script)):
+        updatelog("reply sio request....")
         updatelog(data, True)
         set_report_data("clientreq", data)
-        if (data["data"]["cmd"] == "shutdown"):
+        req_data = data["data"]["cmd"]
+        if (req_data == "shutdown"):
             updatelog("shutdown engine from socketio command ..... ", True)
             do_gracefully_finish()
         
-        elif (data["data"]["cmd"] == "<get_income>"):
+        elif (req_data == "<get_income>"):
             largedata = get_media_list_ext(args.watchfolder, '*.mp4')
-            send_reply_socketio(largedata,  '<incomelist>')
+            send_reply_socketio(id_client, largedata,  '<incomelist>')
             updatelog("get_income from socketio command ..... ", True)
+
+        elif (req_data.startswith("<get_script>")):
+            filename = req_data.split("><")[1][:-1]   # select second bracketted protocol
+            dict_script = sc.search_script_file(filename)
+            updatelog(f'Number of searched script = {len(dict_script)}', True)
+            dict_script_new = [each + "|" + time.strftime('%Y%m%d %H%M%S', time.localtime(os.path.getmtime(each))) for each in dict_script]
+            largedata = ""
+            for item in dict_script_new:                     # result is list !!
+                largedata += item + '\n'
+            send_reply_socketio(id_client, largedata,  '<scriptlist>')
+
+        elif (req_data.startswith("<get_scdata>")):
+            filename = req_data.split("><")[1][:-1]   # select second bracketted protocol
+            largedata = sc.get_script_data(filename)    # result is text  !!
+            send_reply_socketio(id_client, largedata,  '<scriptdata>')
+
+        elif (req_data.startswith("<get_rawscript>")):
+            file_sc = req_data.split("><")[1][:-1]   # select second bracketted protocol
+            largedata = ''
+            try:
+                with open(file_sc, "r", encoding="utf-8") as rawdata:
+                    ary_line = rawdata.readlines()
+                largedata = ''.join(ary_line)
+            except Exception as e:
+                updatelog(e, True)
+                updatelog("Error while get raw script...", True)
+            send_reply_socketio(id_client, largedata, '<rawscript>')
+
+        
+        elif req_data.startswith("<get_waiters>"):
+            updatelog(jobs.get_waiters(), True)
+            largedata = ''
+            for j in jobs.get_waiters():
+                largedata += j + '\n'
+            send_reply_socketio(id_client, largedata, '<waiters>')
+        
+        elif req_data.startswith("<get_jobs>"):
+            updatelog("Response get_jobs request.. /socketio", True)
+            largedata = ''
+            for j in jobs.get_jobs():
+                largedata += j + '\n'
+            send_reply_socketio(id_client, largedata, '<jobs>')
+            updatelog(largedata, True)
+
+
+        elif req_data.startswith("<@@@@@get_ftplist>"):  # get ftp list (old version..  depricated. 2023/10/23
+            connection = transfer(args.transfer, args.username, args.password)
+            get_list = connection.remote_list()
+            largedata = ""
+            for each in get_list:
+                largedata += each + "\n"
+            send_reply_socketio(id_client, largedata, '<ftplist>')    
+
+
+        elif (req_data.startswith("<@@@@@get_incomelist>")): #  depricated. 2023/10/23
+            connection = transfer(args.transfer, args.username, args.password)
+            get_list = connection.remote_list('/incoming')
+            largedata = ""
+            for each in get_list:
+                largedata += each + "\n"
+            updatelog(f'reply ftp get_incomelist\n ftp incomelist is (shows head part only)', True)
+            updatelog(largedata[:160], True)
+            send_reply_socketio(id_client, largedata, '<ftpincomelist>')       
+        
+
+        elif (req_data.startswith("<@@@@@get_successlist>")):   #  depricated. 2023/10/23
+            connection = transfer(args.transfer, args.username, args.password)
+            get_list = connection.remote_list('/success')
+            largedata = ""
+            for each in get_list:
+                largedata += each + "\n"
+            updatelog(f'reply ftp get_successlist\n ftp successlist is (shows head part only)', True)
+            updatelog(largedata[:160], True)
+            send_reply_socketio(id_client, largedata, '<ftpsuccesslist>')       
+        
+        elif (req_data.startswith("@@@@@@<get_errorlist>")):   #  depricated. 2023/10/23
+            connection = transfer(args.transfer, args.username, args.password)
+            get_list = connection.remote_list('/fail')
+            largedata = ""
+            for each in get_list:
+                largedata += each + "\n"
+            updatelog(f'reply ftp get_errorlist\n ftp errorlist is (shows head part only)', True)
+            updatelog(largedata[:160], True)
+            send_reply_socketio(id_client, largedata, '<ftperrorlist>')       
+
+        elif req_data.startswith("<get_status>"):
+            updatelog(ur.get_status(), True)
+            send_reply_socketio(id_client, ur.get_status(), '<status>')
+
+        elif req_data.startswith("<get_updaters>"):
+            report = jobs.get_updaters()
+            updatelog("send updaters queue information", True)
+            updatelog(report, True)
+            send_reply_socketio(id_client, report, '<updaters>')
+
+        elif req_data.startswith("<update_scdata>"):  # update new story
+            data = req_data.split("><")[1][:-1]   # select second bracketted protocol
+            updatelog(f'update story xml from tcp command {data}')
+            do_story_update([time.time(), data])
+
+        elif req_data.startswith("<do_encode>"):  # Manual encoding from tcp command
+            data = req_data.split("><")[1][:-1]   # select second bracketted protocol
+            updatelog(f'Queue up Manual encoding from tcp command {data}')
+            do_encoding(data)
+
+        elif req_data.startswith("<get_media>"):  # Search script related media
+            data = req_data.split("><")[1][:-1]   # select second bracketted protocol
+            updatelog(f'Search script related media from tcp command {data}', True)
+            dict_media = sc.search_media_files(data)
+            updatelog(f'Number of searched media = {len(dict_media)}', True)
+            dict_media_new = [each + "|" + time.strftime('%Y%m%d %H%M%S', time.localtime(os.path.getmtime(each))) for each in dict_media]
+            largedata = ""
+            for item in dict_media_new:                     # result is list !!
+                largedata += item + '\n'
+            send_reply_socketio(id_client, largedata, '<medialist>')
+
+
+        elif req_data.startswith("<set_stt_on>"):
+            updatelog('set STT on command accepted/socket io', True)
+            set_report_data("stt", "True")
+        
+        elif req_data.startswith("<set_stt_off>"):
+            updatelog('set STT off command accepted/socket io', True)
+            set_report_data("stt", "False")
+
+        elif req_data.startswith("<set_trans_on>"):
+            updatelog('set translation on command accepted/socket io', True)
+            set_report_data("translation", "True")
+            
+        elif req_data.startswith("<set_trans_off>"):
+            updatelog('set translation off command accepted/socket io', True)
+            set_report_data("translation", "False") 
+
+
+        
 
 
 def decode_protocol_example(data):
@@ -1877,9 +2212,13 @@ def increase_queue_cycle():
     jobs.cycle_character()
 
 def write_xml_job(this):
-    global args, ur
+    global args, ur, sc
+    
+       
     root = ET.Element("SBS_MAM_Job_List")
     job = ET.SubElement(root, "SBS_MAM_Job")
+    #nds_category_id = {"reuter" : 2010050, "aptn" : 2010052, "cnn" : 2010049}
+    nds_category_id = {"reuter" : 2010067, "aptn" : 2010068, "cnn" : 2010066}  # update 2023/11/11
     
     ET.SubElement(job, "Job_Creation_Time").text = str(int(time.time()))
     ET.SubElement(job, "Job_Type").text = "74"
@@ -1893,7 +2232,7 @@ def write_xml_job(this):
     ET.SubElement(job, "Job_Src_Path_HR").text = this.outputfiles["mxf"][len_target:]
     ET.SubElement(job, "Job_Src_Path_LR").text = this.outputfiles["pxy"][len_target:]
     ET.SubElement(job, "Job_Src_Path_CAT").text = this.outputfiles["jpg1"][len_target:]
-    ET.SubElement(job, "Job_Src_Path_AUDIO").text = this.outputfiles["aud"][len_target:]
+    #ET.SubElement(job, "Job_Src_Path_AUDIO").text = this.outputfiles["aud"][len_target:]
     
     ET.SubElement(job, "Job_Dest_Path").text = '//nds/storage/international'
     ET.SubElement(job, "Job_Dest_Filename").text = '//nds/storage/international'
@@ -1902,7 +2241,7 @@ def write_xml_job(this):
     # ET.SubElement(job, "Job_OBJ_CATEGORY1").text = 'NDS'
     # ET.SubElement(job, "Job_OBJ_CATEGORY2").text = 'INTERNATIONAL'
     # ET.SubElement(job, "Job_OBJ_CATEGORY3").text = args.script
-    ET.SubElement(job, "Job_OBJ_CATEGORY_ID").text = 'reserved for nds folder structure'       # added 2023/9/8
+    ET.SubElement(job, "Job_OBJ_CATEGORY_ID").text = str(nds_category_id[args.script])       # added 2023/9/8, changed 2023/10/17
     ET.SubElement(job, "Job_OBJ_CATEGORY_DESC").text = args.script
     
     try:
@@ -1915,6 +2254,7 @@ def write_xml_job(this):
 
     appdata = ET.SubElement(job, "Job_Src_App_Data")
     ET.SubElement(appdata, "Title").text = sc.get_script_title(this.infile)
+    ET.SubElement(appdata, "PLAN_KEYWORD").text = sc.search_tag(this.infile)    # Added 2023/11/20   (tag)
     story = ET.SubElement(appdata, 'Story')
     story.tail = None
 
@@ -1931,10 +2271,13 @@ def write_xml_job(this):
     tree = ET.ElementTree(root)
     ET.indent(tree, '  ')
     tree.write(this.outputfiles['xml'], encoding='utf-8', xml_declaration=True)
-    updatelog(f'Schedule File transfer {this.outputfiles["xml"]}', True)
+    
     
     if args.transfer:
+        updatelog(f'Schedule File transfer {this.outputfiles["xml"]}', True)
         do_transfer(this.infile)
+    else:
+        updatelog(f'Transfer disabled.... {this.outputfiles["xml"]}', True)
 
 def do_transfer(infile):
     global args, jobs
@@ -1953,7 +2296,7 @@ def do_transfer(infile):
     updatelog(f'Remote ftp mkdir scheduled.... {fps.outputfiles["ftp_folder"]}', True)
     
     job_transfer_mxf = transfer(args.transfer, args.username, args.password)
-    job_transfer_mxf.schedule("send", fps.outputfiles["mxf"])
+    job_transfer_mxf.schedule("send", fps.outputfiles["mxf"], 'incoming')
     jobs.list_transfer.append(job_transfer_mxf)
     updatelog(f'Transfer file scheduled.... {fps.outputfiles["mxf"]}', True)
     
@@ -1969,13 +2312,13 @@ def do_transfer(infile):
     if len(list_catalog):
         updatelog(f'Transfer file list scheduled.... {list_catalog[0]}', True)
     
-    job_transfer_audio = transfer(args.transfer, args.username, args.password)
-    job_transfer_audio.schedule("send", fps.outputfiles["aud"], fps.outputfiles["ftp_folder"])
-    jobs.list_transfer.append(job_transfer_audio)
-    updatelog(f'Transfer file scheduled.... {fps.outputfiles["aud"]}', True)
+    #job_transfer_audio = transfer(args.transfer, args.username, args.password)
+    #job_transfer_audio.schedule("send", fps.outputfiles["aud"], fps.outputfiles["ftp_folder"])
+    #jobs.list_transfer.append(job_transfer_audio)          # Disabled  2023/11/3
+    #updatelog(f'Transfer file scheduled.... {fps.outputfiles["aud"]}', True)
     
     job_transfer_xml = transfer(args.transfer, args.username, args.password)
-    job_transfer_xml.schedule("send", fps.outputfiles["xml"])
+    job_transfer_xml.schedule("send", fps.outputfiles["xml"], 'incoming')
     jobs.list_transfer.append(job_transfer_xml)
     updatelog(f'Transfer file scheduled.... {fps.outputfiles["xml"]}', True)
     
@@ -1994,6 +2337,7 @@ def do_story_update(xml_story):     #  xml_story = [tm_stamp, path_xml]
         scriptdata = sf.get_script_data(path_xml).split('\n')
     except Exception as e:
         updatelog(f'Error while story processing.. {e} \n abort story update {path_xml}', True)
+        set_report_data("last_event", f'Abort story update.... {get_name(path_xml)}')
         return
 
 
@@ -2010,8 +2354,10 @@ def do_story_update(xml_story):     #  xml_story = [tm_stamp, path_xml]
         ET.SubElement(job, "Job_Src_Path_HR_Abs").text = fs.outputfiles["mxf"]
         len_target = len(fs.path_target)
         ET.SubElement(job, "Job_Src_Path_HR").text = fs.outputfiles["mxf"][len_target:]
+        ET.SubElement(job, "Job_Src_ID").text = fs.outputfiles["ID"]
         
         appdata = ET.SubElement(job, "Job_Src_App_Data")
+        ET.SubElement(appdata, "PLAN_KEYWORD").text = sf.search_tag(mediafile)    # Added 2023/11/20   (tag)
         story = ET.SubElement(appdata, 'Story')
         story.tail = None
 
@@ -2028,14 +2374,17 @@ def do_story_update(xml_story):     #  xml_story = [tm_stamp, path_xml]
         new_xmlfile = fs.get_story_update_xml(path_xml)
         tree.write(new_xmlfile, encoding='utf-8', xml_declaration=True)
         updatelog(f'Successfully write story update xml.. {new_xmlfile}', True)
+        set_report_data("last_event", "story update // " + get_name(new_xmlfile))    # Added 2023/11/21
+        
         if args.transfer:
             job_update_xml = transfer(args.transfer, args.username, args.password)
-            job_update_xml.schedule("send", new_xmlfile)
+            job_update_xml.schedule("send", new_xmlfile, 'incoming')
             jobs.list_transfer.append(job_update_xml)
             updatelog(f'Transfer xml update scheduled.... {new_xmlfile}', True)
 
     else:
         updatelog(f'abort story update... {path_xml}  // file (media or done or xml) not exist.. or fail parsing story', True)
+        set_report_data("last_event", f'abort story update... {get_name(path_xml)}')
 
 
 def do_gracefully_finish():
@@ -2050,11 +2399,10 @@ def do_gracefully_finish():
     deleteold.cancel_timer()
     updatelog("clear job queue..", True)
     jobs.force_quit()
-    updatelog("stop watch dog timer..", True)
-    wg.stop()
     updatelog("stop web gui..", True)
     gui.stop()
-
+    updatelog("stop watch dog timer..", True)
+    wg.stop()
 
 
 for folder in ['done', 'debug', 'log']:
@@ -2098,16 +2446,15 @@ else:
 updatelog(f'Start up observer service..... polling is {args.polling}')
 ob.start(args.watchfolder)
 
-#path_done_report = args.done
 
 updatelog(f'Watch folder is "{args.watchfolder}" / target is "{args.target}" / Encoder limit is {timeout_encoder} second', True)
 
 deleteold = delete_old()
-deleteold.add_path_age(args.done, 480)
-deleteold.add_path_age(args.target, 72)
-deleteold.add_path_age(os.path.join(os.getcwd(), 'debug'), 480)
+deleteold.add_path_age(args.done, 250)
+deleteold.add_path_age(args.target, 180)
+deleteold.add_path_age(os.path.join(os.getcwd(), 'debug'), 250)
 #deleteold.do_delete()
-deleteold.start_schedule(2)
+deleteold.start_schedule(2)     # unit is in hours..
 
 set_report_data("tcpsvr", int(args.port + 1))
 
@@ -2128,8 +2475,8 @@ try:
         time.sleep(0.1)
         jobs.run()
         jobs.run_transfer()
-        ur.set_data("age", time.time() - tick_start)
-        ur.set_data("thread", threading.enumerate())
+        ur.set_data("age", display_time(time.time() - tick_start))
+        ur.set_data("thread", [x.name for x in threading.enumerate()])
         ur.set_data("len_enc-wai-upd-xfer", [len(jobs.list_process), len(jobs.list_xml), len(jobs.list_update), len(jobs.list_transfer)])
         ur.send()
         gui.send({"protocol": "debug", "engine": args.script, "data": json.dumps(ur.get_html()) })

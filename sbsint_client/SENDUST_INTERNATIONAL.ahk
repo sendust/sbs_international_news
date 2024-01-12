@@ -137,7 +137,7 @@ return
 
 
 button9:
-tcpsend.sendtext("<get_ftplist>")
+tcpsend.sendtext("<get_incomelist>")
 return
 
 

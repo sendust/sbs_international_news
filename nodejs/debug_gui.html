@@ -1,0 +1,140 @@
+<html>
+<head>
+<title>== sendust International 2023 ==</title>
+
+</head>
+
+
+<body>
+
+<h1 class="title_big"> == sendust International == </h1>
+<h2 class="display_team"> SBS Media IT Team</h2>
+
+<hr>
+<button class="btn" onclick="button1()">  REUTERS </button>
+<button class="btn" onclick="button2()">  APTN </button>
+<button class="btn" onclick="button3()">  CNN </button>
+
+<a href='/log'>LOG</a>
+&nbsp &nbsp &nbsp
+<a href='/fm'>FILE MANAGER</a>
+
+<hr>
+
+<div class="multi">
+<h3> REUTERS </h3>
+<p id="status1"> REUTERS </p>
+<h3> APTN </h3>
+<p id="status2"> APTN </p>
+<h3> CNN </h3>
+<p id="status3"> CNN </p>
+
+
+</body>
+
+
+<style>
+    .title_big{
+    text-align: center;
+    margin: auto;
+    width: 50%;
+    border: 3px solid green;
+    padding: 10px;
+    }
+
+    .display_team{
+    text-align: right;
+    margin-right : 10%;
+    
+    }
+    .btn{
+		margin-right : 50px;
+    }
+
+	.multi{
+		column-count : 3;
+	}
+	
+	.multi h3 {
+		break-before : column;
+	}
+
+</style>
+
+<script src="/socket.io/socket.io.js"></script>
+
+<script>
+
+
+const socket = io();
+var count = 0;
+socket.onAny((eventName) =>{
+    //console.log(eventName);
+    });
+
+const statustext1 = document.getElementById("status1");
+const statustext2 = document.getElementById("status2");
+const statustext3 = document.getElementById("status3");
+
+
+
+socket.on("msg_engine", function(data){
+    console.log(data);
+    if (data.protocol == "debug" && data.engine == "reuter"){
+        statustext1.innerHTML = JSON.stringify(data);
+        }
+		
+	else if (data.protocol == "debug" && data.engine == "aptn"){
+        statustext2.innerHTML = JSON.stringify(data);
+        }
+	else if (data.protocol == "debug" && data.engine == "cnn"){
+        statustext3.innerHTML = JSON.stringify(data);
+        }	
+});
+
+
+
+function button1(){
+    socket.emit("msg_gui", {"protocol" : "gui", "engine" : "reuter", "data" : {"cmd" : "shutdown"}, "count" : count});
+    count += 1;
+    console.log("gui event sent.. button1");
+}
+
+
+function button2(){
+    socket.emit("msg_gui", {"protocol" : "gui", "engine" : "aptn", "data" : {"cmd" : "shutdown"}, "count" : count});
+    count += 1;
+    console.log("gui event sent.. button2");
+}
+
+
+function button3(){
+    socket.emit("msg_gui", {"protocol" : "gui", "engine" : "cnn", "data" : {"cmd" : "shutdown"}, "count" : count});
+    count += 1;
+    console.log("gui event sent.. button3");
+
+
+}
+
+function button4(){
+    socket.emit("msg_gui", {"protocol" : "gui", "data" : {"cmd" : "capture"}, "count" : count});
+    count += 1;
+    console.log("gui event sent..");
+}
+
+
+function button99(){
+    
+    var tbl = document.getElementById("table_status")
+    tbl.rows[1].style.backgroundColor = "rgb(200, 200, 0)";            
+
+}
+
+
+
+      
+</script>
+
+
+</html>
+

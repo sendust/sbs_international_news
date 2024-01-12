@@ -1,0 +1,397 @@
+<html>
+
+
+<head>
+<title>This is SBS International GUI</title>
+
+</head>
+
+<style>
+
+html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+
+div {
+  width: 100%;
+  margin-bottom: 5px;
+  border: 2px solid blue;
+}
+
+
+.largetext{
+    width : 70%;
+    height : 30%;
+    border : 2px solid black;
+    cols : 80;
+}
+
+.tbl th, .tbl td{
+    border: solid 1px ;
+    padding : 1px;
+    text-align : left;
+
+
+.scroll1 div{
+    height : 40%;
+	width : 100%
+    overflow-y : auto;
+	background : green;
+};
+
+
+.scroll2 div{
+    height : 30%;
+	width : 100%
+    overflow-y : auto;
+	background : yellow;
+};
+
+
+#scroll11{
+    height : 30%;
+    overflow-y : auto;
+};
+
+
+#scroll22{
+    height : 30%;
+    overflow-y : auto;
+};
+
+
+
+
+
+
+</style>
+
+
+<style>
+
+
+
+
+</style>
+
+
+
+<body>
+<h2> sendust 국제부 (SBS) !! </h2>
+
+
+<button class="btn" onclick="get_income(this.id)" id="btn_id1">  REUTERS </button>&nbsp &nbsp &nbsp
+<button class="btn" onclick="get_income(this.id)" id="btn_id2">  APTN </button>&nbsp &nbsp &nbsp
+<button class="btn" onclick="get_income(this.id)" id="btn_id3">  CNN </button>&nbsp &nbsp &nbsp
+<textarea type="text", id="status1", style="width:80%;"> selected item</textarea>
+<br><br>
+<button class="btn" onclick="get_ftplists('<get_incomelist>')" id="btn_id4">  FTP_INCOMING </button>&nbsp
+<button class="btn" onclick="get_ftplists('<get_successlist>')" id="btn_id5">  FTP_SUCCESS </button>&nbsp
+<button class="btn" onclick="get_ftplists('<get_errorlist>')" id="btn_id6">  FTP_ERROR </button>&nbsp
+<hr>
+
+
+
+
+<div id="scroll1" class="scroll1">
+    <table id="tb1", class="tbl", style="width:100%">
+        <tr>
+            <th style="width:80%">에이전트 클립 </th>
+            <th style="width:20%">일시 </th>
+        </tr>
+    </table>
+</div>
+
+
+<hr>
+
+
+<div id="scroll2" class="scroll2">
+    <table id="tb2", class="tbl", style="width:100%">
+        <tr>
+            <th style="width:80%">스크립트 </th>
+            <th style="width:20%">일시 </th>
+        </tr>
+    </table>
+</div>
+
+
+
+<hr>
+
+
+<textarea type="text", id="text1", class="largetext"> </textarea>
+<video  width="400" height="280" controls id="videomp4"> </video>
+
+
+</body>
+</html>
+
+<script src="/socket.io/socket.io.js"></script>
+
+<script>
+
+
+
+class sendust_table
+{
+    constructor(id)
+    {
+        this.table = id;
+        this.name = "table00";
+        this.header_index = [];
+        this.row_id = 10;
+        this.callback = function(){};
+        var headerCells= id.getElementsByTagName("th");     // get table header tag
+        let idx = 0;
+        for (let item of headerCells){
+            console.log(item.innerText);
+            this.header_index[item.innerText] = idx;
+            idx += 1;
+        }
+        console.log(this.header_index);
+    }
+    
+    set_name(name)
+    {
+        this.name = name;
+    }
+    
+    
+    get_new_row()   // insert new row with register default cb function
+    {
+        var row = this.table.insertRow();
+        this.row_id += 1;
+		row.id = this.name + "_" + this.row_id;
+        row.addEventListener('click', this.onclick_row, false);
+		row.param = row.id;		// Depricated... 2023/10/12
+		row.cb = this.callback;
+        return row
+    }
+    
+    get_row(n_row)  // Get cell data of row(n)
+    {
+        var row = this.table.rows[n_row];
+        var ary_cell = [];
+        for (let cell of row.cells){
+            ary_cell.push(cell.innerText);
+        }
+        return ary_cell;
+    }
+    
+    add_listener(func)  // Add user defined callback function (onclick)
+    {
+        this.callback = func;
+    }
+    
+    append(row_single)  // add new row with cell data (array)
+    {
+        let row = this.get_new_row()
+        row_single.forEach(function(value, i){
+            let cell = row.insertCell(i);
+            cell.innerText = row_single[i];
+        });
+    }
+    
+    
+    modify_cell(n_row, n_cell, data)  // Modify single cell data (row(n), col(n))
+    {
+        console.log(`change cell data,  ${n_row} ${n_cell} ${data}`);
+        this.table.rows[n_row].cells[n_cell].innerText = data;
+    }
+    
+    get_length()  // Get table length (number of row)
+    {
+        return this.table.rows.length;
+    }
+    
+    
+    delete_all()
+    {
+        var rowCount = this.get_length();
+        for (var i = 1; i < rowCount; i++) {
+            this.table.deleteRow(1);
+        }
+    }
+    
+    delete_n(row_number)
+    {
+        if (row_number <= this.get_length()){
+            this.table.deleteRow(row_number);
+            console.log(`table name ${this.name} of row number ${row_number} deleted..`)
+        }
+    }
+    
+    onclick_row(evt)        // Default cb function on click
+    {
+		let row = evt.currentTarget;
+		let data = [];
+		for (let item of row.cells){
+            data.push(item.innerText)};
+            console.log(data);
+		console.log("start callback ..");
+        console.dir(row);
+        row.cb(row.id, data)  // launch user defined cb. if exist
+		return data;
+    }
+	
+	
+	onclick_row2(evt)      // depricated.. do not use....
+    {
+		let id_row = evt.currentTarget.param;
+		console.log(id_row);
+		let row = document.getElementById(id_row);
+		let data = [];
+		for (let item of row.cells){
+            data.push(item.innerText)};
+            console.log(data);
+		console.log("start callback ..");
+        evt.currentTarget.cb(id_row, data)  // launch user defined cb. if exist
+		return data;
+    }
+    
+    get_matching_row(name_header, value)
+    {
+        var result = [];
+        for (var i = 1, row; row=this.table.rows[i]; i++)
+        {
+            if (row.cells[this.header_index[name_header]].innerText == value)
+            {
+                console.log("found matching..." + name_header +  " == " + value)
+                console.log(row.id)
+                result.push(row.id)
+            }
+        }
+        console.log(result);
+        return result;
+    }
+    
+    get_index_from_id(id_row)
+    {
+        let row = document.getElementById(id_row);
+        return row.rowIndex;
+    }
+    
+}
+
+
+
+
+const text1 = document.getElementById("text1");
+const status1 = document.getElementById("status1");
+const videomp4 = document.getElementById("videomp4");
+
+var tb1 = new sendust_table(document.getElementById("tb1"));
+var tb2 = new sendust_table(document.getElementById("tb2"));
+tb1.set_name("table_income");
+tb2.set_name("table_script");
+
+tb1.add_listener(on_click_incomelist);
+tb2.add_listener(on_click_scriptlist);
+
+
+const btn_map = {"btn_id1" : "reuter", "btn_id2" : "aptn", "btn_id3" : "cnn" };
+const mp4path_map = {"reuter" : "/reuters/", "aptn" : "/aptn/", "cnn" : "/cnn/"}
+var engine = "reuter";
+
+const socket = io();
+var count = 0;
+var socketid = 0;
+
+
+socket.onAny((eventName) =>{
+    console.log(eventName);
+    });
+
+
+socket.on("reply_engine", function(data){
+    console.dir(data);
+    text1.value = data;
+    let data_trim = data.replace("<start_transfer>", "")
+    data_trim = data_trim.replace("<finish_transfer>", "")
+    decode_reply(data_trim);
+
+});
+
+
+socket.on('askForUserId', () => {
+    socketid = socket.id;
+    socket.emit('userIdReceived', socket.id);
+    });
+
+
+
+function decode_reply(data)
+{
+    if (data.endsWith("<incomelist>"))
+    {
+        //alert("income list");
+        tb1.delete_all();
+        data_new = data.replace("<incomelist>", "");
+        ary_line = data_new.split(/\r?\n/);
+        ary_line.forEach((currentValue, index)=>{
+            ary_temp = currentValue.split("|");
+            tb1.append([ary_temp[0], ary_temp[1]]);
+
+        });
+    }
+    
+    if (data.endsWith("<scriptlist>"))
+    {
+        //alert("income list");
+        tb2.delete_all();
+        data_new = data.replace("<scriptlist>", "");
+        ary_line = data_new.split(/\r?\n/);
+        ary_line.forEach((currentValue, index)=>{
+            ary_temp = currentValue.split("|");
+            tb2.append([ary_temp[0], ary_temp[1]]);
+
+        });
+    }
+
+}
+
+function on_click_incomelist(id, data)
+{
+    var filename = data[0];
+	status1.value = filename;
+    socket.emit("msg_gui", {receiverId : socketid, "protocol" : "gui", "engine" : engine, "data" : {"cmd" : "<get_script><" + filename + ">"}, "count" : count});    
+	let path1 = mp4path_map[engine];
+	videomp4.src = path1 + filename.split("\\").slice(-1);
+	console.log(videomp4.src);
+	
+	
+
+}
+
+function on_click_scriptlist(id, data)
+{
+    var filename = data[0];
+	status1.value = filename;
+    socket.emit("msg_gui", {receiverId : socketid, "protocol" : "gui", "engine" : engine, "data" : {"cmd" : "<get_scdata><" + filename + ">"}, "count" : count});    
+}
+
+function get_income(id_btn){
+	engine = btn_map[id_btn];
+    socket.emit("msg_gui", {receiverId : socketid, "protocol" : "gui", "engine" : engine, "data" : {"cmd" : "<get_income>"}, "count" : count});
+    count += 1;
+    console.log("gui event sent.. button1");
+
+}
+
+function get_ftplists(cmd){
+    socket.emit("msg_gui", {receiverId : socketid, "protocol" : "gui", "engine" : engine, "data" : {"cmd" : cmd}, "count" : count});
+    count += 1;
+    console.log("gui event sent.. button1");
+}
+
+
+
+
+
+</script>
+

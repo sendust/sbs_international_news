@@ -62,7 +62,8 @@ class scriptfinder:
 
 
     def search_script_file_reuter(self, infile):   # infile is mp4
-        key = get_name(infile).split('_')[-1][5:-4] + '.XML'
+        #key = get_name(infile).split('_')[-1][5:-4] + '.XML'
+        key = get_name(infile).split('_')[5][5:-4] + '.XML'
         sclist = glob.glob(os.path.join(self.watchpath, '*' + key))
         sclist.sort()
         if sclist:
@@ -128,12 +129,12 @@ class scriptfinder:
         return self.text_script
 
 
-mp4list = glob.glob('E:/cnn_download/*.mp4')
-print(mp4list)
-sf = scriptfinder('E:/cnn_download', 'cnn')
+mp4list = glob.glob('D:/agent_REUTERS/*.mp4')
+#print(mp4list)
+sf = scriptfinder('D:/agent_REUTERS', 'reuter')
 for f in mp4list:
     l = sf.search_script_file(f)
     print(f)
-    print(l)
-    print(sf.get_script_data(l[-1][:100]))
+    print(len(l))
+    #print(sf.get_script_data(l[-1][:100]))
     print('*'*100)

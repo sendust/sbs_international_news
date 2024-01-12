@@ -1,3 +1,3 @@
-title http server from node js...
-node server_sbsint.js
+title http server from node js... listen port 50080
+node fm_socketio.js
 pause

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<mos>
+  <mosID>AffiliateServer</mosID>
+  <ncsID>PushServer</ncsID>
+  <messageID>0</messageID>
+  <mosReqObjAction operation="NEW">
+    <mosObj>
+      <objID>CNNA-ST1-200000000005c341</objID>
+      <objSlug>IA: RAMASWAMAY MAKES CAMPAIGN STOP IN COUNCIL BLUFFS</objSlug>
+      <objGroup>FusionPush</objGroup>
+      <objType>VIDEO</objType>
+      <objTB>30</objTB>
+      <objRev>0</objRev>
+      <objDur>0</objDur>
+      <status>NEW</status>
+      <objAir>READY</objAir>
+      <objPaths>
+        <objProxyFile techDescription="JPEG 16:9">MW-002FR_IA_ RAMASWAMAY MAKES _CNNA-ST1-200000000005c341_801_0.jpg</objProxyFile>
+        <objFile techDescription="H264 MP4 1080i NTSC">BHDN_MW-002FR_IA_ RAMASWAMAY MAKES _CNNA-ST1-200000000005c341_174_0.mp4</objFile>
+        <objProxyFile techDescription="H264 16:9">WH16x9N_MW-002FR_IA_ RAMASWAMAY MAKES _CNNA-ST1-200000000005c341_213_0.mp4</objProxyFile>
+      </objPaths>
+      <createdBy>MetadataXmlCreator</createdBy>
+      <created>2023-11-17T09:06:41,247Z</created>
+      <changedBy>MetadataXmlCreator</changedBy>
+      <changed>2023-11-17T09:06:41,247Z</changed>
+      <description>&lt;p&gt;&lt;b&gt;--SUPERS&lt;/b&gt;--&lt;/p&gt;
+&lt;p&gt;Thursday&lt;/p&gt;
+&lt;p&gt;Council Bluffs, IA&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;--VIDEO SHOWS&lt;/b&gt;--&lt;/p&gt;
+&lt;p&gt;Republican presidential candidate Vivek Ramaswamy campaigns in Council Bluffs, IA&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;-----END---------&lt;/b&gt;&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+&lt;p&gt;&lt;b&gt;--KEYWORD TAGS--&lt;/b&gt;&lt;/p&gt;
+&lt;p&gt;IOWA US POLITICS 2024 PRESIDENTIAL CAMPAIGN ELECTION VOTE VIVEK&lt;/p&gt;
+&lt;p&gt;&lt;/p&gt;
+</description>
+      <mosExternalMetadata>
+        <mosScope>STORY</mosScope>
+        <mosSchema>http://www.bitcentral.com/mos/supported_schemas/BCMOSXML1.00</mosSchema>
+        <mosPayload>
+          <storyNum>MW-002FR</storyNum>
+          <format>VO/NAT</format>
+          <sourceAffiliate>WOWT</sourceAffiliate>
+          <embargoDMA>Omaha, NE</embargoDMA>
+          <originalFormatCategory>HD</originalFormatCategory>
+          <contributingStation>CNNA-ST1-0000000000000001</contributingStation>
+          <expiration>2023-11-20T09:05:43,012Z</expiration>
+          <playoutDuration>:57</playoutDuration>
+          <categories>
+            <category id="CNNA-ST1-200000000004d823">2024 Presidential Race</category>
+            <category id="CNNC-CE1-10000000007da7d9">National</category>
+            <category id="CNNC-CE1-10000000003b550d">Midwest</category>
+            <category id="CNNC-CE1-10000000014919f6">US Politics</category>
+            <category id="CNNC-CE1-1000000000002087">Web Ready</category>
+            <category id="CNNC-CE1-1000000000002089">US</category>
+          </categories>
+        </mosPayload>
+      </mosExternalMetadata>
+    </mosObj>
+  </mosReqObjAction>
+</mos>

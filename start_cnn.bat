@@ -1,7 +1,8 @@
 title CNN news processor. by sendust
 timeout /t 2
 :begin
-"C:\Users\develop\miniconda3\python.exe"  watchfolder.py --watchfolder z:\ --target f:\int_mxf_cnn --port 21000 --script cnn --polling True  --transfer "10.40.254.51" --username "wire" --password "ndsnds00!"
+rem python.exe  watchfolder.py --watchfolder D:\agent_CNN --target E:\output_cnn --port 50031 --script cnn  --transfer "10.40.24.121" --username "wire" --password "ndsnds00!"
+python.exe  watchfolder.py --watchfolder D:\agent_CNN --target E:\output_cnn --port 50031 --script cnn  --transfer "10.40.28.101" --username "wire" --password "ndsnds00!"
 goto begin
 pause
 

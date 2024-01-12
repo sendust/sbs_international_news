@@ -1,0 +1,88 @@
+<html>
+
+
+<head>
+<title>This is SBS International GUI</title>
+
+</head>
+
+<style>
+
+.largetext{
+    width : 100%;
+    height : 30%;
+    border : 2px solid black;
+    rows : 100;
+    cols : 80;
+}
+
+
+</style>
+
+
+<body>
+<h2> Hello World  !! </h2>
+
+
+<button class="btn" onclick="get_income(this.id)" id="btn_id1">  REUTERS </button>&nbsp &nbsp &nbsp
+<button class="btn" onclick="get_income(this.id)" id="btn_id2">  APTN </button>&nbsp &nbsp &nbsp
+<button class="btn" onclick="get_income(this.id)" id="btn_id3">  CNN </button>
+<hr>
+
+<p id="text1">TEXT LINE 1 </p>
+<hr>
+<p id="text2">TEXT LINE 2 </p>
+<hr>
+<textarea type="text", id="text3", class="largetext"> </textarea>
+
+</body>
+</html>
+
+<script src="/socket.io/socket.io.js"></script>
+
+<script>
+
+const text1 = document.getElementById("text1");
+const text2 = document.getElementById("text2");
+const text3 = document.getElementById("text3");
+
+
+const btn_map = {"btn_id1" : "reuter", "btn_id2" : "aptn", "btn_id3" : "cnn" };
+
+const socket = io();
+var count = 0;
+var socketid = 0;
+
+socket.onAny((eventName) =>{
+    console.log(eventName);
+    });
+
+
+socket.on("reply_engine", function(data){
+    console.dir(data);
+    text3.value = data;
+
+});
+
+
+socket.on('askForUserId', () => {
+    socketid = socket.id;
+    socket.emit('userIdReceived', socket.id);
+    });
+
+
+
+function get_income(id_btn){
+	var engine = btn_map[id_btn];
+    socket.emit("msg_gui", {receiverId : socketid, "protocol" : "gui", "engine" : engine, "data" : {"cmd" : "<get_income>"}, "count" : count});
+    count += 1;
+    console.log("gui event sent.. button1");
+
+}
+
+
+
+
+
+</script>
+

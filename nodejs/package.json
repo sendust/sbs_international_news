@@ -9,7 +9,10 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "cloudcmd": "^15.3.3",
+    "cors": "^2.8.5",
     "express": "^4.18.2",
+    "serve-index": "^1.9.1",
     "socket.io": "^4.7.2"
   }
 }

@@ -167,11 +167,11 @@ class gui(Gtk.Window):
         
         
         self.entry1 = Gtk.Entry()
-        self.entry1.set_text("4002")
+        self.entry1.set_text("50013")
         self.entry2 = Gtk.Entry()
-        self.entry2.set_text("7892")
+        self.entry2.set_text("50023")
         self.entry3 = Gtk.Entry()
-        self.entry3.set_text("21002")
+        self.entry3.set_text("50033")
         
         #self.entry11 = Gtk.TextView()
         #self.entry12 = Gtk.TextView()
